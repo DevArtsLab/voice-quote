@@ -20,16 +20,13 @@ services:
       - key: PORT
         value: 10000 # Render assigns PORT=10000 by default
 
-  # ── Frontend: Angular SPA ─────────────────────────────────────────────────
-  - type: web
+  # ── Frontend: Angular SPA (static site) ──────────────────────────────────
+  - type: static
     name: quote-builder-frontend
-    runtime: node
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist/frontend/browser
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: API_BASE_URL
         value: https://quote-builder-backend.onrender.com
     routes:
