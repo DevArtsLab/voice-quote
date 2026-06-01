@@ -1,0 +1,14 @@
+[build]
+  base = "frontend"
+  command = "npm install && npm run build"
+  publish = "dist/frontend/browser"
+
+[build.environment]
+  NODE_VERSION = "20"
+  API_BASE_URL = "https://quote-builder-backend.fly.dev"
+
+# SPA routing — redirect all paths to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
