@@ -17,5 +17,8 @@
     "graphql-subscriptions": "^2.0.0",
     "graphql-ws": "^5.16.0",
     "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.10"
   }
 }
