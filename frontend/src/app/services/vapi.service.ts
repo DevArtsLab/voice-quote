@@ -8,9 +8,14 @@ export type VapiToolEvent =
   | { type: 'advance_step'; payload: { step: string } }
   | { type: 'submit_quote'; payload: { coverageIds: string[] } };
 
-// Vapi Web SDK is loaded via CDN script tag in index.html
-// We reference it here via the global window object
+// Vapi Web SDK is loaded via CDN script tag in index.html.
+// The UMD bundle sets window.Vapi — we access it via window to avoid
+// TypeScript "not defined" errors and handle load-timing issues.
 declare const Vapi: new (apiKey: string) => VapiInstance;
+function getVapiConstructor(): (new (apiKey: string) => VapiInstance) | null {
+  const w = window as unknown as Record<string, unknown>;
+  return (w['Vapi'] ?? w['VapiWeb'] ?? null) as (new (apiKey: string) => VapiInstance) | null;
+}
 
 interface VapiInstance {
   start(assistantId: string, metadata?: Record<string, unknown>): Promise<void>;
@@ -61,13 +66,17 @@ export class VapiService implements OnDestroy {
   }
 
   async startCall(assistantId: string): Promise<void> {
-    if (!assistantId || typeof Vapi === 'undefined') {
-      console.warn('Vapi SDK not loaded or no assistant ID provided');
+    const VapiConstructor = getVapiConstructor();
+    if (!assistantId || !VapiConstructor) {
+      console.warn('Vapi SDK not loaded or no assistant ID provided', {
+        assistantId,
+        VapiConstructor,
+      });
       this.statusText.set('Voice unavailable — check Vapi config');
       return;
     }
 
-    this.vapiInstance = new Vapi(this.getApiKey());
+    this.vapiInstance = new VapiConstructor(this.getApiKey());
 
     this.vapiInstance.on('call-start', () => {
       this.isCallActive.set(true);
