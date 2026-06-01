@@ -21,8 +21,9 @@ services:
         value: 10000 # Render assigns PORT=10000 by default
 
   # ── Frontend: Angular SPA (static site) ──────────────────────────────────
-  - type: static
+  - type: web
     name: quote-builder-frontend
+    runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist/frontend/browser
