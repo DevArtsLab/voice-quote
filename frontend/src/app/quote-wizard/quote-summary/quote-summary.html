@@ -1,0 +1,73 @@
+<div class="page-enter summary-wrapper">
+
+  @if (!quote()) {
+    <div class="glass-card loading-card">
+      <div class="spinner"></div>
+      <p>Building your quote...</p>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="glass-card error-card">
+      <p>{{ error() }}</p>
+      <button class="glass-btn" (click)="back()">← Go back</button>
+    </div>
+  }
+
+  @if (quote()) {
+    <div class="glass-card-deep summary-card" [class.approved]="status() === 'approved'" [class.declined]="status() === 'declined'">
+
+      <!-- Status banner -->
+      <div class="status-banner" [class]="'status-' + status()">
+        @switch (status()) {
+          @case ('draft')     { <span>Draft</span> }
+          @case ('submitted') { <span>⏳ Reviewing your quote...</span> }
+          @case ('approved')  { <span>✓ Quote Approved!</span> }
+          @case ('declined')  { <span>✗ Not approved at this time</span> }
+        }
+      </div>
+
+      <div class="summary-header">
+        <h2>Your {{ quote()!.lineOfBusiness | titlecase }} Quote</h2>
+        <p class="quote-id">Quote #{{ quote()!.id }}</p>
+      </div>
+
+      <div class="applicant-row">
+        <span>{{ quote()!.applicantName }}</span>
+        <span class="dim">{{ quote()!.applicantEmail }}</span>
+      </div>
+
+      <div class="coverages-list">
+        @for (cov of quote()!.selectedCoverages; track cov.id) {
+          <div class="coverage-row">
+            <span>{{ cov.name }}</span>
+            <span class="cov-price">
+              <span class="dollar">$</span>{{ cov.monthlyPremium | number:'1.2-2' }}/mo
+            </span>
+          </div>
+        }
+      </div>
+
+      <div class="total-row">
+        <span>Total monthly premium</span>
+        <span class="total-price">
+          <span class="dollar">$</span>{{ quote()!.totalMonthlyPremium | number:'1.2-2' }}<span class="per-mo">/mo</span>
+        </span>
+      </div>
+
+      <div class="actions">
+        @if (status() === 'draft') {
+          <button class="glass-btn" (click)="back()">← Edit</button>
+          <button class="glass-btn-primary" [disabled]="submitting()" (click)="submitQuote()">
+            {{ submitting() ? 'Submitting...' : 'Submit Quote' }}
+          </button>
+        }
+        @if (status() === 'approved' || status() === 'declined') {
+          <button class="glass-btn-primary" (click)="startOver()">Start New Quote</button>
+        }
+      </div>
+
+    </div>
+  }
+
+</div>

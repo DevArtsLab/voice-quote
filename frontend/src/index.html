@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>QuoteAI — Insurance Quote Builder</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Backend API base URL — update content attr for production -->
+    <meta name="api-base-url" content="http://localhost:4000" />
+    <!-- Vapi Web SDK — voice AI -->
+    <script>
+      // Keys are never hardcoded here — fetched from backend /api/config at startup.
+      // The backend reads them from .env, so they stay out of source control entirely.
+      var apiBase = document.querySelector('meta[name="api-base-url"]').getAttribute('content');
+      window.API_BASE_URL = apiBase;
+      window.VAPI_PUBLIC_KEY = '';
+      window.VAPI_ASSISTANT_ID = '';
+      fetch(apiBase + '/api/config')
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (cfg) {
+          window.VAPI_PUBLIC_KEY = cfg.vapiPublicKey || '';
+          window.VAPI_ASSISTANT_ID = cfg.vapiAssistantId || '';
+        })
+        .catch(function () {
+          console.warn('Could not load app config from backend');
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.umd.js" defer></script>
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

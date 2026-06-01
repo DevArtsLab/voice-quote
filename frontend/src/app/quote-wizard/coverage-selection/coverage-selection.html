@@ -1,0 +1,65 @@
+<div class="page-enter coverage-selection">
+  <div class="section-header">
+    <h2>Choose your coverages</h2>
+    @if (genui.spec().copy.coverageHint) {
+      <div class="ai-hint glass-card">
+        <span class="ai-badge">✦ AI Insight</span>
+        <p>{{ genui.spec().copy.coverageHint }}</p>
+      </div>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-grid">
+      @for (n of [1,2,3,4]; track n) {
+        <div class="glass-card skeleton"></div>
+      }
+    </div>
+  }
+
+  @if (error()) {
+    <p class="error-msg">Failed to load coverages. Is the backend running?</p>
+  }
+
+  <div class="coverage-grid">
+    @for (opt of coverages(); track opt.id) {
+      <button
+        class="glass-card coverage-card"
+        [class.selected]="isSelected(opt.id)"
+        [class.coverage-card-ai]="isHighlighted(opt.id)"
+        (click)="store.toggleCoverage(opt.id)">
+
+        <div class="card-top">
+          <span class="coverage-name">{{ opt.name }}</span>
+          @if (opt.recommended) {
+            <span class="rec-badge">Recommended</span>
+          }
+          @if (isHighlighted(opt.id)) {
+            <span class="ai-badge-sm">✦ AI Pick</span>
+          }
+        </div>
+
+        <p class="coverage-desc">{{ opt.description }}</p>
+
+        <div class="card-footer">
+          <span class="premium">
+            <span class="dollar">$</span>{{ opt.monthlyPremium }}<span class="per-mo">/mo</span>
+          </span>
+          <span class="check-icon" [class.checked]="isSelected(opt.id)">
+            {{ isSelected(opt.id) ? '✓' : '+' }}
+          </span>
+        </div>
+      </button>
+    }
+  </div>
+
+  @if (coverages().length > 0) {
+    <div class="selection-summary glass-card">
+      <span>{{ store.formState().selectedCoverageIds.length }} coverages selected</span>
+      <span class="total-premium">
+        <span class="dollar">$</span>{{ totalPremium() | number:'1.2-2' }}<span class="per-mo">/mo</span>
+      </span>
+      <button class="glass-btn-primary" (click)="next()">Continue →</button>
+    </div>
+  }
+</div>

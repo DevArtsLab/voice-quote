@@ -1,0 +1,99 @@
+.wizard-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  gap: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.brand-icon { font-size: 1.3rem; }
+
+.progress-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 99px;
+  overflow: hidden;
+  min-width: 80px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--lob-primary), var(--lob-secondary));
+  border-radius: 99px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.wizard-content {
+  flex: 1;
+  animation: slide-up-fade 0.4s ease-out both;
+}
+
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border-color: rgba(139,92,246,0.3);
+}
+
+.ai-pulse {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(139,92,246,0.6);
+  animation: pulse-ring 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.ai-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  opacity: 0.7;
+}
+
+.ai-badge-sm {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(167,139,250,1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ai-copy {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}

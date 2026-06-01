@@ -1,0 +1,15 @@
+# Environment variables — never commit
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Angular build output
+frontend/dist/
+frontend/.angular/
+
+# Logs
+*.log
+npm-debug.log*

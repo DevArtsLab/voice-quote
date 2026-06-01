@@ -1,0 +1,52 @@
+<app-animated-background />
+
+<div class="wizard-shell">
+
+  <!-- Top bar -->
+  <header class="topbar glass-card">
+    <div class="brand">
+      <span class="brand-icon">🛡️</span>
+      <span class="brand-name">QuoteAI</span>
+    </div>
+
+    <!-- Liquid progress bar -->
+    <div class="progress-track">
+      <div class="progress-fill" [style.width.%]="progressPct()"></div>
+    </div>
+
+    <div class="step-label">
+      Step {{ currentStepIndex() + 1 }} of {{ steps().length }}
+    </div>
+
+    <!-- Voice AI mic button -->
+    <app-voice-mic-button />
+  </header>
+
+  <!-- AI loading state while Claude generates spec -->
+  @if (genui.loading()) {
+    <div class="ai-loading glass-card">
+      <div class="ai-pulse"></div>
+      <span>AI is personalising your experience...</span>
+    </div>
+  }
+
+  <!-- GenUI Renderer — Claude's spec controls which component appears -->
+  <main class="wizard-content">
+    @switch (store.currentStep()) {
+      @case ('lob-select')          { <app-lob-select /> }
+      @case ('coverage-selection')  { <app-coverage-selection /> }
+      @case ('applicant-info')      { <app-applicant-info /> }
+      @case ('summary')             { <app-quote-summary /> }
+      @default                      { <app-lob-select /> }
+    }
+  </main>
+
+  <!-- AI copy from Claude's spec — personalised headline shown below wizard -->
+  @if (store.currentStep() !== 'lob-select') {
+    <footer class="ai-footer">
+      <span class="ai-badge-sm">✦ AI Personalised</span>
+      <span class="ai-copy">{{ genui.spec().copy.subheadline }}</span>
+    </footer>
+  }
+
+</div>

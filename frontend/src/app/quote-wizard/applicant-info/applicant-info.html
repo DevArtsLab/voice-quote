@@ -1,0 +1,33 @@
+<div class="page-enter applicant-info">
+  <h2>Your details</h2>
+  <p class="subtitle">Almost done — just a few details to personalise your quote.</p>
+
+  <div class="form-group">
+    <label class="field-label" for="name">Full name</label>
+    <input
+      id="name"
+      class="glass-input"
+      type="text"
+      placeholder="Jane Smith"
+      [(ngModel)]="name"
+      autocomplete="name" />
+  </div>
+
+  <div class="form-group">
+    <label class="field-label" for="email">Email address</label>
+    <input
+      id="email"
+      class="glass-input"
+      type="email"
+      placeholder="jane@example.com"
+      [(ngModel)]="email"
+      autocomplete="email" />
+  </div>
+
+  <div class="actions">
+    <button class="glass-btn" (click)="back()">← Back</button>
+    <button class="glass-btn-primary" [disabled]="!isValid()" (click)="next()">
+      Review Quote →
+    </button>
+  </div>
+</div>

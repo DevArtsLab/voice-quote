@@ -1,0 +1,77 @@
+# GraphQL Schema — Insurance Quote Builder
+# This SDL (Schema Definition Language) is the single source of truth
+# for what data the client can request and what mutations it can perform.
+
+# --- Enums ---
+
+enum LineOfBusiness {
+  auto
+  home
+  life
+}
+
+enum QuoteStatus {
+  draft
+  submitted
+  approved
+  declined
+}
+
+# --- Types ---
+
+type CoverageOption {
+  id: ID!
+  lineOfBusiness: LineOfBusiness!
+  name: String!
+  description: String!
+  monthlyPremium: Float!
+  recommended: Boolean!
+}
+
+type Quote {
+  id: ID!
+  lineOfBusiness: LineOfBusiness!
+  applicantName: String!
+  applicantEmail: String!
+  selectedCoverages: [CoverageOption!]!
+  totalMonthlyPremium: Float!
+  status: QuoteStatus!
+  createdAt: String!
+  aiPersonalized: Boolean!
+}
+
+# --- Input types (used by mutations) ---
+
+input QuoteInput {
+  lineOfBusiness: LineOfBusiness!
+  applicantName: String!
+  applicantEmail: String!
+  coverageIds: [ID!]!
+  aiPersonalized: Boolean
+}
+
+# --- Root types ---
+
+type Query {
+  # Fetch all coverage options, optionally filtered by line of business
+  coverageOptions(lineOfBusiness: LineOfBusiness): [CoverageOption!]!
+
+  # Fetch a single quote by ID
+  quote(id: ID!): Quote
+
+  # List all quotes in the session
+  quotes: [Quote!]!
+}
+
+type Mutation {
+  # Create a new draft quote from the wizard form or voice agent
+  createQuote(input: QuoteInput!): Quote!
+
+  # Submit a draft quote for approval
+  submitQuote(id: ID!): Quote!
+}
+
+type Subscription {
+  # Real-time updates when a quote status changes
+  quoteStatusUpdated(id: ID!): Quote!
+}
