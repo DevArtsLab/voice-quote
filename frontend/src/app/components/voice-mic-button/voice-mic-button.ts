@@ -169,7 +169,9 @@ export class VoiceMicButtonComponent implements OnInit, OnDestroy {
         case 'submit_quote': {
           const { coverageIds } = event.payload;
           this.store.setSelectedCoverages(coverageIds);
-          this.store.triggerSubmit();
+          this.store.setStep('summary');
+          // Small delay so QuoteSummaryComponent mounts and subscribes before trigger fires
+          setTimeout(() => this.store.triggerSubmit(), 50);
           break;
         }
       }

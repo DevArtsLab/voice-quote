@@ -41,33 +41,49 @@ export class QuoteSummaryComponent implements OnInit, OnDestroy {
   private statusSub?: Subscription;
 
   ngOnInit(): void {
-    this.createQuote();
-    // Listen for Vapi submit_quote tool call
-    this.submitSub = this.store.submitTrigger$.subscribe(() => this.submitQuote());
+    // Only pre-create the quote draft if coverages are already selected (manual path).
+    // On the voice path, advance_step fires before submit_quote sets the IDs,
+    // so we defer createQuote() until submitTrigger$ fires with the real coverageIds.
+    if (this.store.formState().selectedCoverageIds.length > 0) {
+      this.createQuote();
+    }
+    // Listen for Vapi submit_quote tool call (and manual Submit button)
+    this.submitSub = this.store.submitTrigger$.subscribe(() => {
+      const q = this.quote();
+      // Re-create if quote hasn't been created yet or was created with empty coverageIds
+      if (!q || q.selectedCoverages.length === 0) {
+        this.createQuote(() => this.submitQuote());
+      } else {
+        this.submitQuote();
+      }
+    });
   }
 
-  private createQuote(): void {
+  private createQuote(onComplete?: () => void): void {
     const state = this.store.formState();
-    this.apollo.mutate<{ createQuote: QuoteResult }>({
-      mutation: CREATE_QUOTE_MUTATION,
-      variables: {
-        input: {
-          lineOfBusiness: state.lineOfBusiness,
-          applicantName: state.applicantName,
-          applicantEmail: state.applicantEmail,
-          coverageIds: state.selectedCoverageIds,
-          aiPersonalized: true,
+    this.apollo
+      .mutate<{ createQuote: QuoteResult }>({
+        mutation: CREATE_QUOTE_MUTATION,
+        variables: {
+          input: {
+            lineOfBusiness: state.lineOfBusiness,
+            applicantName: state.applicantName,
+            applicantEmail: state.applicantEmail,
+            coverageIds: state.selectedCoverageIds,
+            aiPersonalized: true,
+          },
         },
-      },
-    }).subscribe({
-      next: ({ data }) => {
-        if (data?.createQuote) {
-          this.quote.set(data.createQuote);
-          this.status.set(data.createQuote.status as QuoteStatus);
-        }
-      },
-      error: (err) => this.error.set(err.message),
-    });
+      })
+      .subscribe({
+        next: ({ data }) => {
+          if (data?.createQuote) {
+            this.quote.set(data.createQuote);
+            this.status.set(data.createQuote.status as QuoteStatus);
+            onComplete?.();
+          }
+        },
+        error: (err) => this.error.set(err.message),
+      });
   }
 
   submitQuote(): void {
@@ -75,39 +91,50 @@ export class QuoteSummaryComponent implements OnInit, OnDestroy {
     if (!q || this.submitting()) return;
     this.submitting.set(true);
 
-    this.apollo.mutate<{ submitQuote: { id: string; status: string } }>({
-      mutation: SUBMIT_QUOTE_MUTATION,
-      variables: { id: q.id },
-    }).subscribe({
-      next: () => {
-        this.subscribeToStatus(q.id);
-      },
-      error: (err) => {
-        this.error.set(err.message);
-        this.submitting.set(false);
-      },
-    });
+    this.apollo
+      .mutate<{ submitQuote: { id: string; status: string } }>({
+        mutation: SUBMIT_QUOTE_MUTATION,
+        variables: { id: q.id },
+      })
+      .subscribe({
+        next: () => {
+          this.subscribeToStatus(q.id);
+        },
+        error: (err) => {
+          this.error.set(err.message);
+          this.submitting.set(false);
+        },
+      });
   }
 
   // GraphQL Subscription — server pushes status updates in real time
   private subscribeToStatus(quoteId: string): void {
-    this.statusSub = this.apollo.subscribe<{ quoteStatusUpdated: { id: string; status: string } }>({
-      query: QUOTE_STATUS_SUBSCRIPTION,
-      variables: { id: quoteId },
-    }).subscribe({
-      next: ({ data }) => {
-        if (data?.quoteStatusUpdated) {
-          this.status.set(data.quoteStatusUpdated.status as QuoteStatus);
-          if (data.quoteStatusUpdated.status === 'approved' || data.quoteStatusUpdated.status === 'declined') {
-            this.submitting.set(false);
+    this.statusSub = this.apollo
+      .subscribe<{ quoteStatusUpdated: { id: string; status: string } }>({
+        query: QUOTE_STATUS_SUBSCRIPTION,
+        variables: { id: quoteId },
+      })
+      .subscribe({
+        next: ({ data }) => {
+          if (data?.quoteStatusUpdated) {
+            this.status.set(data.quoteStatusUpdated.status as QuoteStatus);
+            if (
+              data.quoteStatusUpdated.status === 'approved' ||
+              data.quoteStatusUpdated.status === 'declined'
+            ) {
+              this.submitting.set(false);
+            }
           }
-        }
-      },
-    });
+        },
+      });
   }
 
-  back(): void { this.store.setStep('applicant-info'); }
-  startOver(): void { this.store.reset(); }
+  back(): void {
+    this.store.setStep('applicant-info');
+  }
+  startOver(): void {
+    this.store.reset();
+  }
 
   ngOnDestroy(): void {
     this.submitSub?.unsubscribe();
