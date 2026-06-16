@@ -98,7 +98,7 @@ export class VapiService implements OnDestroy {
       this.isCallActive.set(false);
     });
 
-    await this.vapiInstance.start(assistantId, { sessionId: this.sessionId });
+    await this.vapiInstance.start(assistantId, { metadata: { sessionId: this.sessionId } });
   }
 
   stopCall(): void {
