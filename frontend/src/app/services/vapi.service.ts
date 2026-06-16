@@ -1,5 +1,6 @@
 import { Injectable, signal, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
+import Vapi from '@vapi-ai/web';
 import { environment } from '../../environments/environment';
 
 export type VapiToolEvent =
@@ -7,22 +8,6 @@ export type VapiToolEvent =
   | { type: 'highlight_coverage'; payload: { coverageId: string; reason?: string } }
   | { type: 'advance_step'; payload: { step: string } }
   | { type: 'submit_quote'; payload: { coverageIds: string[] } };
-
-// Vapi Web SDK is loaded via CDN script tag in index.html.
-// The UMD bundle sets window.Vapi — we access it via window to avoid
-// TypeScript "not defined" errors and handle load-timing issues.
-declare const Vapi: new (apiKey: string) => VapiInstance;
-function getVapiConstructor(): (new (apiKey: string) => VapiInstance) | null {
-  const w = window as unknown as Record<string, unknown>;
-  return (w['Vapi'] ?? w['VapiWeb'] ?? null) as (new (apiKey: string) => VapiInstance) | null;
-}
-
-interface VapiInstance {
-  start(assistantId: string, metadata?: Record<string, unknown>): Promise<void>;
-  stop(): void;
-  on(event: string, cb: (...args: unknown[]) => void): void;
-  off(event: string, cb: (...args: unknown[]) => void): void;
-}
 
 @Injectable({ providedIn: 'root' })
 export class VapiService implements OnDestroy {
@@ -33,17 +18,14 @@ export class VapiService implements OnDestroy {
   // Components subscribe to this stream to react to tool calls
   readonly toolEvents$ = new Subject<VapiToolEvent>();
 
-  private vapiInstance: VapiInstance | null = null;
-  private sessionId: string = crypto.randomUUID();
+  private vapiInstance: Vapi | null = null;
   private sseSource: EventSource | null = null;
+  private currentCallId: string | null = null;
 
-  constructor() {
-    this.connectSSE();
-  }
-
-  // Connect to the backend SSE stream for Vapi tool-call events
-  private connectSSE(): void {
-    const url = `${environment.apiBaseUrl}/api/events?sessionId=${this.sessionId}`;
+  // Connect to the backend SSE stream keyed by the Vapi call ID
+  private connectSSE(callId: string): void {
+    this.sseSource?.close();
+    const url = `${environment.apiBaseUrl}/api/events?sessionId=${callId}`;
     this.sseSource = new EventSource(url);
 
     const eventTypes: VapiToolEvent['type'][] = [
@@ -60,23 +42,21 @@ export class VapiService implements OnDestroy {
     });
 
     this.sseSource.onerror = () => {
-      // Reconnect silently after 3s
-      setTimeout(() => this.connectSSE(), 3000);
+      if (this.currentCallId) {
+        setTimeout(() => this.connectSSE(this.currentCallId!), 3000);
+      }
     };
   }
 
   async startCall(assistantId: string): Promise<void> {
-    const VapiConstructor = getVapiConstructor();
-    if (!assistantId || !VapiConstructor) {
-      console.warn('Vapi SDK not loaded or no assistant ID provided', {
-        assistantId,
-        VapiConstructor,
-      });
+    const apiKey = this.getApiKey();
+    if (!assistantId || !apiKey) {
+      console.warn('Vapi: missing assistant ID or API key', { assistantId, hasKey: !!apiKey });
       this.statusText.set('Voice unavailable — check Vapi config');
       return;
     }
 
-    this.vapiInstance = new VapiConstructor(this.getApiKey());
+    this.vapiInstance = new Vapi(apiKey);
 
     this.vapiInstance.on('call-start', () => {
       this.isCallActive.set(true);
@@ -89,7 +69,8 @@ export class VapiService implements OnDestroy {
     this.vapiInstance.on('call-end', () => {
       this.isCallActive.set(false);
       this.isSpeaking.set(false);
-      this.statusText.set('Call ended');
+      this.statusText.set('Ready to talk');
+      this.currentCallId = null;
     });
 
     this.vapiInstance.on('error', (err: unknown) => {
@@ -98,7 +79,14 @@ export class VapiService implements OnDestroy {
       this.isCallActive.set(false);
     });
 
-    await this.vapiInstance.start(assistantId, { metadata: { sessionId: this.sessionId } });
+    // start() returns the Call object which has the Vapi call ID
+    const call = await this.vapiInstance.start(assistantId);
+    if (call?.id) {
+      this.currentCallId = call.id;
+      this.connectSSE(call.id);
+    } else {
+      console.warn('Vapi: call started but no call ID returned — tool calls will not work');
+    }
   }
 
   stopCall(): void {
@@ -106,10 +94,10 @@ export class VapiService implements OnDestroy {
     this.isCallActive.set(false);
     this.isSpeaking.set(false);
     this.statusText.set('Ready to talk');
+    this.currentCallId = null;
   }
 
   private getApiKey(): string {
-    // In a real app inject this from environment.ts
     return ((window as unknown as Record<string, unknown>)['VAPI_PUBLIC_KEY'] as string) ?? '';
   }
 

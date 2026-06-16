@@ -155,9 +155,9 @@ app.post("/api/vapi-webhook", (req, res) => {
 
   // Vapi sends tool call events as message.type === "tool-calls"
   if (message.type === "tool-calls") {
-    const sessionId = message.call?.metadata?.sessionId;
+    const sessionId = message.call?.id;
     if (!sessionId)
-      return res.status(400).json({ error: "No sessionId in metadata" });
+      return res.status(400).json({ error: "No call ID in message" });
 
     const results = message.toolCallList.map((tc) => ({
       toolCallId: tc.id,
