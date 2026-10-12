@@ -11,6 +11,8 @@ primary_region = 'iad'
 [env]
   NODE_ENV = 'production'
   PORT = '8080'
+  LLM_BASE_URL = 'https://api.cloudflare.com/client/v4/accounts/2d2958f6b06a047cb36b346a0ab01056/ai/v1'
+  LLM_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'
 
 [http_service]
   internal_port = 8080

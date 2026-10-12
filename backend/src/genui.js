@@ -1,8 +1,52 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// LLM provider selection:
+// - LLM_BASE_URL + LLM_MODEL set -> any OpenAI-compatible endpoint
+//   (Cloudflare Workers AI, Groq, Gemini, local Ollama at http://localhost:11434/v1)
+// - otherwise -> Anthropic via ANTHROPIC_API_KEY
+const LLM_BASE_URL = process.env.LLM_BASE_URL;
+const LLM_MODEL = process.env.LLM_MODEL;
+const LLM_API_KEY = process.env.LLM_API_KEY ?? "";
 
-// generateUISpec — calls Claude to produce a JSON layout spec for the Angular GenUI renderer.
+let anthropic;
+function getAnthropic() {
+  if (!anthropic) anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return anthropic;
+}
+
+async function callOpenAICompatible(prompt) {
+  const res = await fetch(`${LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(LLM_API_KEY ? { Authorization: `Bearer ${LLM_API_KEY}` } : {}),
+    },
+    body: JSON.stringify({
+      model: LLM_MODEL,
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`LLM request failed: ${res.status} ${body.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("LLM returned empty content");
+  return content;
+}
+
+function parseJsonSpec(raw) {
+  const cleaned = raw.replace(/```(?:json)?/g, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1)
+    throw new Error("No JSON object found in LLM response");
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+// generateUISpec — calls an LLM to produce a JSON layout spec for the Angular GenUI renderer.
 // The spec tells the frontend: which steps to show, which coverages to highlight, and
 // what personalized copy to display. This is the heart of Generative UI.
 export async function generateUISpec(context) {
@@ -38,17 +82,21 @@ Coverage IDs available: liability, collision, comprehensive, uninsured, medical-
 Step IDs to include based on LOB: always include "lob-select", "coverage-selection", "applicant-info", "summary". Add LOB-specific steps only.`;
 
   try {
-    const message = await client.messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const raw = message.content[0].text.trim();
-    return JSON.parse(raw);
+    let raw;
+    if (LLM_BASE_URL && LLM_MODEL) {
+      raw = await callOpenAICompatible(prompt);
+    } else {
+      const message = await getAnthropic().messages.create({
+        model: "claude-opus-4-5",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+      });
+      raw = message.content[0].text.trim();
+    }
+    return parseJsonSpec(raw);
   } catch (err) {
-    console.error("Claude GenUI error:", err.message);
-    // Fallback spec if Claude is unavailable
+    console.error("GenUI LLM error:", err.message);
+    // Fallback spec if the LLM is unavailable
     return getDefaultSpec(lineOfBusiness);
   }
 }
@@ -57,19 +105,34 @@ function getDefaultSpec(lob) {
   const defaults = {
     auto: {
       layout: "focused",
-      steps: ["lob-select", "vehicle-info", "coverage-selection", "driver-info", "applicant-info", "summary"],
+      steps: [
+        "lob-select",
+        "vehicle-info",
+        "coverage-selection",
+        "driver-info",
+        "applicant-info",
+        "summary",
+      ],
       highlight: ["liability", "collision"],
       hiddenFields: [],
       copy: {
         headline: "Your personalized auto insurance quote",
-        subheadline: "Comprehensive coverage tailored to your vehicle and driving habits.",
-        coverageHint: "Liability and Collision are the most common coverages for drivers.",
+        subheadline:
+          "Comprehensive coverage tailored to your vehicle and driving habits.",
+        coverageHint:
+          "Liability and Collision are the most common coverages for drivers.",
       },
       theme: { primaryColor: "#3B82F6", accentColor: "#6366F1" },
     },
     home: {
       layout: "expanded",
-      steps: ["lob-select", "home-info", "coverage-selection", "applicant-info", "summary"],
+      steps: [
+        "lob-select",
+        "home-info",
+        "coverage-selection",
+        "applicant-info",
+        "summary",
+      ],
       highlight: ["dwelling", "personal-prop"],
       hiddenFields: [],
       copy: {
@@ -81,13 +144,20 @@ function getDefaultSpec(lob) {
     },
     life: {
       layout: "focused",
-      steps: ["lob-select", "life-info", "coverage-selection", "applicant-info", "summary"],
+      steps: [
+        "lob-select",
+        "life-info",
+        "coverage-selection",
+        "applicant-info",
+        "summary",
+      ],
       highlight: ["term-life", "critical-ill"],
       hiddenFields: [],
       copy: {
         headline: "Secure your family's future today",
         subheadline: "Life coverage designed around your needs and budget.",
-        coverageHint: "Term Life is the most affordable way to protect your loved ones.",
+        coverageHint:
+          "Term Life is the most affordable way to protect your loved ones.",
       },
       theme: { primaryColor: "#8B5CF6", accentColor: "#EC4899" },
     },
