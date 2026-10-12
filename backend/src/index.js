@@ -157,7 +157,14 @@ app.post("/api/vapi-webhook", (req, res) => {
 
     const results = message.toolCallList.map((tc) => ({
       toolCallId: tc.id,
-      result: handleVapiToolCall(tc.function.name, tc.function.arguments, sessionId),
+      result: handleVapiToolCall(
+        tc.function.name,
+        // Vapi sends arguments as a JSON string; handlers expect an object
+        typeof tc.function.arguments === "string"
+          ? JSON.parse(tc.function.arguments || "{}")
+          : (tc.function.arguments ?? {}),
+        sessionId,
+      ),
     }));
 
     return res.json({ results });

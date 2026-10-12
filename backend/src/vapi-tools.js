@@ -6,14 +6,24 @@
 // Active SSE client connections: Map<sessionId, res>
 export const sseClients = new Map();
 
-// Broadcast a tool-call event to the Angular frontend for a given session
+// Broadcast a tool-call event to the Angular frontend for a given session.
+// Single-user demo: if no client registered for this session, fan out to all
+// connected clients rather than dropping the event silently.
 function broadcastToClient(sessionId, eventType, payload) {
+  const data = `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`;
   const client = sseClients.get(sessionId);
-  if (!client) {
+  if (client) {
+    client.write(data);
+    return;
+  }
+  if (sseClients.size === 0) {
     console.warn(`No SSE client for session ${sessionId}`);
     return;
   }
-  client.write(`event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`);
+  console.warn(
+    `No SSE client for session ${sessionId}; broadcasting to ${sseClients.size} client(s)`,
+  );
+  for (const c of sseClients.values()) c.write(data);
 }
 
 // Vapi sends tool call results back as { result: string }
@@ -60,13 +70,15 @@ export const vapiToolDefinitions = [
     type: "function",
     function: {
       name: "fill_form_field",
-      description: "Fill a specific field in the insurance quote form based on what the user just said.",
+      description:
+        "Fill a specific field in the insurance quote form based on what the user just said.",
       parameters: {
         type: "object",
         properties: {
           field: {
             type: "string",
-            description: "The form field name, e.g. lineOfBusiness, applicantName, applicantEmail, vehicleYear, vehicleMake",
+            description:
+              "The form field name, e.g. lineOfBusiness, applicantName, applicantEmail, vehicleYear, vehicleMake",
           },
           value: {
             type: "string",
@@ -81,13 +93,15 @@ export const vapiToolDefinitions = [
     type: "function",
     function: {
       name: "highlight_coverage",
-      description: "Visually highlight a coverage option card on the UI to draw the user's attention to it.",
+      description:
+        "Visually highlight a coverage option card on the UI to draw the user's attention to it.",
       parameters: {
         type: "object",
         properties: {
           coverageId: {
             type: "string",
-            description: "The coverage ID to highlight, e.g. collision, dwelling, term-life",
+            description:
+              "The coverage ID to highlight, e.g. collision, dwelling, term-life",
           },
           reason: {
             type: "string",
@@ -102,13 +116,15 @@ export const vapiToolDefinitions = [
     type: "function",
     function: {
       name: "advance_step",
-      description: "Move the quote wizard to the next step after collecting all required info for the current step.",
+      description:
+        "Move the quote wizard to the next step after collecting all required info for the current step.",
       parameters: {
         type: "object",
         properties: {
           step: {
             type: "string",
-            description: "The step to navigate to, e.g. coverage-selection, applicant-info, summary",
+            description:
+              "The step to navigate to, e.g. coverage-selection, applicant-info, summary",
           },
         },
         required: ["step"],
@@ -119,7 +135,8 @@ export const vapiToolDefinitions = [
     type: "function",
     function: {
       name: "submit_quote",
-      description: "Submit the completed quote after collecting all required information from the user.",
+      description:
+        "Submit the completed quote after collecting all required information from the user.",
       parameters: {
         type: "object",
         properties: {
