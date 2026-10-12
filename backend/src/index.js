@@ -14,11 +14,7 @@ import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
 import { resolvers } from "./resolvers.js";
 import { generateUISpec } from "./genui.js";
-import {
-  handleVapiToolCall,
-  sseClients,
-  vapiToolDefinitions,
-} from "./vapi-tools.js";
+import { handleVapiToolCall, sseClients, vapiToolDefinitions } from "./vapi-tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const typeDefs = readFileSync(path.join(__dirname, "schema.graphql"), "utf8");
@@ -28,9 +24,11 @@ const schema = makeExecutableSchema({ typeDefs, resolvers });
 const app = express();
 const httpServer = createServer(app);
 
+// FRONTEND_URL accepts a comma-separated list so the Netlify origin and
+// the voice-quote.devartslab.com proxy domain are both allowed.
 const allowedOrigins = [
   "http://localhost:4200",
-  process.env.FRONTEND_URL,
+  ...(process.env.FRONTEND_URL ?? "").split(",").map((o) => o.trim()),
 ].filter(Boolean);
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
@@ -78,8 +76,7 @@ app.get("/api/vapi-tools", (_req, res) => {
 // --- Vapi assistant config helper ---
 // Returns a ready-to-use assistant config blob for the Vapi dashboard
 app.get("/api/vapi-assistant-config", (req, res) => {
-  const webhookUrl =
-    req.query.webhookUrl || "https://YOUR-NGROK-URL/api/vapi-webhook";
+  const webhookUrl = req.query.webhookUrl || "https://YOUR-NGROK-URL/api/vapi-webhook";
   res.json({
     name: "QuoteAI Assistant",
     model: {
@@ -156,16 +153,11 @@ app.post("/api/vapi-webhook", (req, res) => {
   // Vapi sends tool call events as message.type === "tool-calls"
   if (message.type === "tool-calls") {
     const sessionId = message.call?.id;
-    if (!sessionId)
-      return res.status(400).json({ error: "No call ID in message" });
+    if (!sessionId) return res.status(400).json({ error: "No call ID in message" });
 
     const results = message.toolCallList.map((tc) => ({
       toolCallId: tc.id,
-      result: handleVapiToolCall(
-        tc.function.name,
-        tc.function.arguments,
-        sessionId,
-      ),
+      result: handleVapiToolCall(tc.function.name, tc.function.arguments, sessionId),
     }));
 
     return res.json({ results });
@@ -177,16 +169,8 @@ app.post("/api/vapi-webhook", (req, res) => {
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => {
   console.log(`🚀 GraphQL server ready at http://localhost:${PORT}/graphql`);
-  console.log(
-    `📡 GraphQL subscriptions ready at ws://localhost:${PORT}/graphql`,
-  );
-  console.log(
-    `🤖 GenUI endpoint: POST http://localhost:${PORT}/api/generate-ui`,
-  );
-  console.log(
-    `🎙️  Vapi webhook: POST http://localhost:${PORT}/api/vapi-webhook`,
-  );
-  console.log(
-    `📺 SSE events: GET http://localhost:${PORT}/api/events?sessionId=xxx`,
-  );
+  console.log(`📡 GraphQL subscriptions ready at ws://localhost:${PORT}/graphql`);
+  console.log(`🤖 GenUI endpoint: POST http://localhost:${PORT}/api/generate-ui`);
+  console.log(`🎙️  Vapi webhook: POST http://localhost:${PORT}/api/vapi-webhook`);
+  console.log(`📺 SSE events: GET http://localhost:${PORT}/api/events?sessionId=xxx`);
 });

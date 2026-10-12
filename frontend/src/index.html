@@ -18,17 +18,27 @@
       window.API_BASE_URL = apiBase;
       window.VAPI_PUBLIC_KEY = '';
       window.VAPI_ASSISTANT_ID = '';
-      fetch(apiBase + '/api/config')
-        .then(function (r) {
-          return r.json();
-        })
-        .then(function (cfg) {
-          window.VAPI_PUBLIC_KEY = cfg.vapiPublicKey || '';
-          window.VAPI_ASSISTANT_ID = cfg.vapiAssistantId || '';
-        })
-        .catch(function () {
-          console.warn('Could not load app config from backend');
-        });
+      function loadConfig(attempt) {
+        fetch(apiBase + '/api/config')
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (cfg) {
+            window.VAPI_PUBLIC_KEY = cfg.vapiPublicKey || '';
+            window.VAPI_ASSISTANT_ID = cfg.vapiAssistantId || '';
+          })
+          .catch(function () {
+            // Retry with backoff — the Fly backend cold-starts (~5s) after idle.
+            if (attempt < 4) {
+              setTimeout(function () {
+                loadConfig(attempt + 1);
+              }, 1500 * attempt);
+            } else {
+              console.warn('Could not load app config from backend');
+            }
+          });
+      }
+      loadConfig(1);
     </script>
   </head>
   <body>
